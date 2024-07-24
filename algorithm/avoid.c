@@ -2,6 +2,33 @@
 
 osSemaphoreId_t *avoid_sem;
 
+int Should_Avoid(){
+    if(fabs(Current_Yaw - 90.0f)<0.001){
+        if(current_y + 1 <= 9 && current_y + 1 >= 0 && map[current_x][current_y + 1]){
+            return 1;
+        }
+    }
+            
+    else if(fabs(Current_Yaw + 90.0f)<0.001){
+        if(current_y - 1 <= 9 && current_y - 1 >= 0 && map[current_x][current_y - 1]){
+            return 1;
+        }
+    }
+
+    else if(fabs(Current_Yaw)<0.001){
+         if(current_x + 1 <= 9 && current_x + 1 >= 0 && map[current_x + 1][current_y]){
+            return 1;
+        }
+    }
+    
+    else if(fabs(Current_Yaw - 180.0f)<0.001){
+         if(current_x - 1 <= 9 && current_x - 1 >= 0 && map[current_x - 1][current_y]){
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void avoid_run(){
     int init_yaw = Current_Yaw;
     printf("start to avoid\n");

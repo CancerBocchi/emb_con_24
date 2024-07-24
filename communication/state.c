@@ -57,10 +57,10 @@ int changed_axis = 0;
  */
 void remote_con_run(){
     if(command_recieve_flag && !strcmp(command,CMD3_remotecon)){
-        printf("rmcon:start to move\n");
+        printf("rmcon:start to move axis:%d,direction:%d\n",changed_axis,remote_con_direction);
         //没有位移
         if(changed_axis == 0){
-            Car_Change_Yaw(remote_con_direction*90);
+            Car_Change_Yaw(remote_con_direction);
         }
         //有位移
         else{
@@ -80,6 +80,14 @@ void remote_con_run(){
                 tar_y-=changed_axis;
                 break;
             }
+            // Dtof_Flag = 0;
+            // // while(Dtof_Flag == 0);
+            // if(avoid_flag == 1){
+            //     printf("find bariar forward\n");
+            //     osSemaphoreRelease(avoid_sem);
+            //     osSemaphoreAcquire(avoid_sem,osWaitForever);
+            // }
+            printf("start to move\n");
             Axis_move_to_target_position(tar_x,tar_y);
         }
 

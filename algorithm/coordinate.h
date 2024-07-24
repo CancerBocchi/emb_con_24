@@ -4,6 +4,10 @@
 #include "headfile.h"
 #include "a_star.h"
 
+//单位坐标对应的厘米数
+#define SINGLE_AXIS 40
+#define NORMAL_SPEED 20
+
 extern float current_vy;
 extern float current_vx;
 

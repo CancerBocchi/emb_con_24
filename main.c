@@ -27,6 +27,8 @@
 static int car_init_flag = 0;
 static int dtof_init_flag = 0;
 static int udp_init_flag = 0;
+
+osSemaphoreId_t *sys_sem;
 /**
  * @brief encoder task
  *
@@ -62,7 +64,9 @@ static void PatrolTask(void){
  * @brief UartTask
  *
  */
+//避障标志位，或者说前面是否有障碍物标志位
 int avoid_flag;
+int Dtof_Flag = 0;
 static void UartTask(void)
 {
     while(udp_init_flag == 0){
@@ -73,14 +77,16 @@ static void UartTask(void)
     dtof_init_flag = 1;
     while(1){
         Dtof_ReadData();
-        int num = Dtof_GetPointNum(0,300);
+        int num = Dtof_GetPointNum(0,400);
+        
         // printf("point_num between 0 and 200 is %d\n",num);
         if(num >=50)
             avoid_flag = 1;
         else
             avoid_flag = 0;
 
-        printf("dtof:num:%d\n",num);
+        Dtof_Flag = 1;
+        // printf("dtof:num:%d\n",Dtof_Flag);
         
         memset(uartReadBuff,0,sizeof(uartReadBuff));
         // num = Dtof_GetPointNum(0,300);
@@ -88,93 +94,33 @@ static void UartTask(void)
         // num = Dtof_GetPointNum(0,400);
         // printf("point_num between 0 and 400 is %d\n",num);
     }
-    
-    // printf("UartTask entry\n");
-    // uint8_t uart_buff_1[UART_BUFF_SIZE] = {0};
-    // uint8_t *uart_buff_ptr_1 = uart_buff_1;
-    // uint8_t ret;
-    // hi_io_set_func(HI_IO_NAME_GPIO_11, HI_IO_FUNC_GPIO_11_UART2_TXD); /* uart2 tx */
-    // hi_io_set_func(HI_IO_NAME_GPIO_12, HI_IO_FUNC_GPIO_12_UART2_RXD); /* uart2 rx */
-    
-    // IotUartAttribute uart_attr = {
-
-    //     // baud_rate: 115200
-    //     .baudRate = 115200, 
-
-    //     // data_bits: 8bits
-    //     .dataBits = 8,
-    //     .stopBits = 1,
-    //     .parity = 0,
-    // };
-    // // // Initialize uart driver
-    // ret = IoTUartInit(WIFI_IOT_UART_IDX_2, &uart_attr);
-    // if (ret != IOT_SUCCESS)
-    // {
-    //     printf("Failed to init uart2! Err code = %d\n", ret);
-    //     return;
-    // }
-
-    // while (1)
-    // {
-
-    //     // send data through uart1
-    //     IoTUartRead(WIFI_IOT_UART_IDX_2, uart_buff_ptr_1, UART_BUFF_SIZE);
-    //     if (uart_buff_ptr_1[0] != 0)
-    //     {
-    //         if (!strcmp(uart_buff_ptr_1, "1"))
-    //         {
-    //             Axis_move_to_target_position(0,0);
-    //         }
-    //         else if (!strcmp(uart_buff_ptr_1, "2"))
-    //         {
-    //             Axis_move_to_target_position(10,0);
-    //         }
-    //         else if (!strcmp(uart_buff_ptr_1, "3"))
-    //         {
-    //             Axis_move_to_target_position(10,10);
-    //         }
-    //         else if (!strcmp(uart_buff_ptr_1, "4"))
-    //         {
-    //             printf("car_rotate\n");
-    //            Car_Change_Yaw(180);
-    //         }
-    //         else if (!strcmp(uart_buff_ptr_1, "5"))
-    //         {
-    //             printf("car_rotate_move1");
-    //             Car_Change_Yaw(360);
-    //         }
-    //         else if (!strcmp(uart_buff_ptr_1, "6"))
-    //         {
-    //             printf("car_rotate_move2");
-    //             Car_Change_Yaw(60);
-    //         }
-    //         else if(uart_buff_ptr_1[0] == 'P'){
-    //             float p = atof(uart_buff_ptr_1+1);
-    //             printf("p:%f\n",p);
-    //             angle_con.Kp = p;
-    //         }
-    //         else if(uart_buff_ptr_1[0] == 'D'){
-    //             float d = atof(uart_buff_ptr_1+1);
-    //             printf("d:%f\n",d);
-    //             angle_con.Kd = d;
-    //         }
-    //         else
-    //             printf("command not found!\n");
-    //         memset(uart_buff_ptr_1, 0, 8);
-    //     }
-    //     else
-    //         ;
-    //     usleep(40000);
-    // }
 }
 
+int sys_in_avoid_flag;
 static void AvoidTask(){
+    static int avoid_n = 0;
     while(1){
         osSemaphoreAcquire(avoid_sem,osWaitForever);
-
-            avoid_run();
-
-        osSemaphoreRelease(avoid_sem);
+        printf("barrier forward\n");
+        int should_avoid = Should_Avoid();
+        printf("should avoid: %d\n",should_avoid);
+        if(!should_avoid){
+             sys_in_avoid_flag = 1;
+            while(avoid_n<=5){
+                if(Dtof_Flag){
+                    //有障碍置0，无障碍自加
+                    avoid_n = (avoid_flag == 1)?0:avoid_n + 1;
+                    Dtof_Flag = 0;
+                    printf("avoid_n:%d\n",avoid_n);
+                }
+                printf("Dtof_Flag:%d\n",Dtof_Flag);
+            }
+        }
+        printf("no barrier forward\n");
+        avoid_n = 0;
+        sys_in_avoid_flag = 0;
+        avoid_flag = 0;
+        osSemaphoreRelease(sys_sem);
         
     }
 
@@ -265,7 +211,7 @@ static void UDPServerTask(void)
             // a++;
             // b++;
             
-            sprintf(udp_sendbuf, "%d,%d",current_x,current_y); //产生"123"
+            sprintf(udp_sendbuf, "%d,%d,%d,%d",current_x,current_y,sys_in_avoid_flag,car_init_flag); //产生"123"
             if ((ret = sendto(sock_fd, udp_sendbuf, strlen(udp_sendbuf) + 1, 0 ,(struct sockaddr *)&client_sock , sizeof(client_sock) )) == -1) {
                 perror("send : ");
             }
@@ -316,6 +262,11 @@ static void ThreadExample(void)
     //避障信号量
     avoid_sem = osSemaphoreNew(4,0,NULL);
     if(avoid_sem == NULL){
+        printf("Failed to create avoid_sem!\n");
+    }
+
+    sys_sem = osSemaphoreNew(4,0,NULL);
+    if(sys_sem == NULL){
         printf("Failed to create avoid_sem!\n");
     }
     //用于避障

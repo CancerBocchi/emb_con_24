@@ -105,18 +105,19 @@ void Car_DisMotion(int dy,int dt,int target_x,int target_y){
     Car_Chang_Speed((int)vy,Speed.Speed_omega);
     // 延时dt个毫秒
     for(int i = 1;i<=dt;i++){
-        int mul = IsMultiple(i,100);
+        int mul = IsMultiple(i,SINGLE_AXIS/NORMAL_SPEED*100);
+        // mul = (i==1)? 1:mul;
         if(mul){
-            if(abs(Current_Yaw - 90.0f)<0.001)
+            if(fabs(Current_Yaw - 90.0f)<0.001)
                 current_y+=1;
             
-            else if(abs(Current_Yaw + 90.0f)<0.001)
+            else if(fabs(Current_Yaw + 90.0f)<0.001)
                 current_y-=1;
 
-            else if(abs(Current_Yaw)<0.001)
+            else if(fabs(Current_Yaw)<0.001)
                 current_x+=1;
             
-            else if(abs(Current_Yaw - 180.0f)<0.001)
+            else if(fabs(Current_Yaw - 180.0f)<0.001)
                 current_x-=1;
 
             printf("Current_x:%d,Current_y:%d\n",current_x,current_y);
@@ -126,8 +127,8 @@ void Car_DisMotion(int dy,int dt,int target_x,int target_y){
                 printf("Get into avoid_sem:tarx:%d,tary:%d\n",current_target_x,current_target_y);
                 osDelay(10);
                 osSemaphoreRelease(avoid_sem);
-                osSemaphoreAcquire(avoid_sem,osWaitForever);
-                return;
+                osSemaphoreAcquire(sys_sem,osWaitForever);
+                // return;
             }
             //发现停止 巡逻状态
             if(car_state == State_patrol && !patrol_flag){

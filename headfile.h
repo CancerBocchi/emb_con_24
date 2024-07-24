@@ -29,6 +29,8 @@
 #include "udp_com.h"
 
 extern int avoid_flag;
+extern int Dtof_Flag;
+extern osSemaphoreId_t *sys_sem;
 
 
 #endif

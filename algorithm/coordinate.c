@@ -4,9 +4,9 @@
 #define PI 3.1415926f
 
 //常规速度 单位cm/s
-#define NORMAL_SPEED 20
 #define SLOW_SPEED 15
 #define FAST_SPEED 35
+
 
 #define IsNode(p) (p.x!=-1&&p.y!=-1)
 
@@ -92,12 +92,23 @@ void Axis_move_to_target_position(int target_x,int target_y){
     float distance = my_sqrt(dx*dx+dy*dy);
     printf("dt\n");
     //计算时间 单位s 
-    float dt = distance*20/(NORMAL_SPEED);
+    float dt = distance*SINGLE_AXIS/(NORMAL_SPEED);
 
     printf("dt:%f,yaw:%f,anref:%f,tar:(%d,%d),cur:(%d,%d)\n",dt,Current_Yaw,angle_con.Ref,target_x,target_y,current_x,current_y);
-
+    osDelay(50);
+    //启动前发现有障碍
+    Dtof_Flag = 0;
+    while(!Dtof_Flag){
+        printf("%d\n",Dtof_Flag);
+    }
+    if(avoid_flag){
+        printf("Get into avoid_sem:tarx:%d,tary:%d\n",current_target_x,current_target_y);
+        osSemaphoreRelease(avoid_sem);
+        osSemaphoreAcquire(sys_sem,osWaitForever);
+        printf("return from the avoid_task\n");
+    }
     //注意输入单位为 cm 和 10ms
-    Car_DisMotion((float)(distance*20),(float)(dt*100),target_x,target_y);
+    Car_DisMotion((float)(distance*SINGLE_AXIS),(float)(dt*100),target_x,target_y);
 
     osDelay(50);
 
@@ -195,7 +206,7 @@ int patrol_begin_flag = 0;
 void Axis_patrol_run(){
     
     int i = 0;
-    //初始标志位
+    //初始标志位 开始巡逻时 先路径规划置起点
     if(!patrol_begin_flag){
         Axis_Path_Planning(map,patrol_node[0]);
         //当发现退出巡线时

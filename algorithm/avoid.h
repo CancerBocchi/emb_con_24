@@ -6,6 +6,8 @@
 
 extern osSemaphoreId_t *avoid_sem;
 
+
 void avoid_run();
+int Should_Avoid();
 
 #endif // !__AVOID_H__
